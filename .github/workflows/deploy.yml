@@ -25,8 +25,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
+
+      # Диагностика: убедимся, что файлы в корне
+      - name: Debug list files
+        run: |
+          pwd
+          ls -la
+          echo "----"
+          ls -la .github/workflows || true
 
       - name: Install dependencies
         run: npm ci
