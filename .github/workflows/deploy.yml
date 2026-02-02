@@ -26,16 +26,13 @@ jobs:
         with:
           node-version: "20"
 
-      # Диагностика: убедимся, что файлы в корне
       - name: Debug list files
         run: |
           pwd
           ls -la
-          echo "----"
-          ls -la .github/workflows || true
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build
         run: npm run build
