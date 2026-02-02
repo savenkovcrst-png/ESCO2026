@@ -1,117 +1,133 @@
+// src/ui/DecisionTreeRunner.tsx
 import React, { useMemo, useState } from "react";
-import type { DecisionTree, AnswerValue } from "../decision/decisionTree";
-import { getNode, answerQuestion, isResultNode, type RunState } from "../decision/engine";
+import type { DecisionTree, DecisionNode } from "../decision/decisionTree";
+import { getNode } from "../decision/engine";
+import { ACTION_LIBRARY } from "../library/actionLibrary";
 
-type Props = { tree: DecisionTree };
+type Props = {
+  tree: DecisionTree;
+};
 
 export function DecisionTreeRunner({ tree }: Props) {
-  const [state, setState] = useState<RunState>({ currentNodeId: tree.startNodeId, answers: {} });
+  const [currentId, setCurrentId] = useState<string>(tree.startNodeId);
+  const [history, setHistory] = useState<string[]>([]);
 
-  const node = useMemo(() => getNode(tree, state.currentNodeId), [tree, state.currentNodeId]);
+  const node: DecisionNode = useMemo(() => getNode(tree, currentId), [tree, currentId]);
 
-  function onAnswer(value: AnswerValue) {
-    setState((prev) => answerQuestion(tree, prev, value));
+  const packs = useMemo(() => {
+    return (node.actionRefs ?? [])
+      .map((id) => ACTION_LIBRARY[id])
+      .filter(Boolean);
+  }, [node]);
+
+  function go(nextId: string) {
+    setHistory((h) => [...h, currentId]);
+    setCurrentId(nextId);
   }
+
+  function back() {
+    setHistory((h) => {
+      if (h.length === 0) return h;
+      const prev = h[h.length - 1];
+      setCurrentId(prev);
+      return h.slice(0, -1);
+    });
+  }
+
   function reset() {
-    setState({ currentNodeId: tree.startNodeId, answers: {} });
+    setHistory([]);
+    setCurrentId(tree.startNodeId);
   }
 
-  if (isResultNode(node)) {
-    return (
-      <div className="card">
-        <div className="row">
-          <h2 style={{ margin: 0 }}>{node.title}</h2>
-          {node.severity && <span className={"pill " + node.severity}>{node.severity}</span>}
-        </div>
-
-        <h3>План действий</h3>
-        <ol>
-          {node.actions.map((a, i) => (
-            <li key={i}>{a}</li>
-          ))}
-        </ol>
-
-        {node.notes?.length ? (
-          <>
-            <h3>Примечания / ТБ</h3>
-            <ul>
-              {node.notes.map((n, i) => (
-                <li key={i}>{n}</li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-
-        {node.references?.length ? (
-          <>
-            <h3>Ссылка на книгу</h3>
-            <ul>
-              {node.references.map((r, i) => (
-                <li key={i}>
-                  {r.chapter}
-                  {r.section ? ` — ${r.section}` : ""}
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-
-        <div className="row">
-          <button onClick={reset}>Начать заново</button>
-        </div>
-      </div>
-    );
-  }
-
-  const q = node;
   return (
     <div className="card">
-      <h2 style={{ marginTop: 0 }}>{tree.title}</h2>
-      <h3>{q.title}</h3>
-      {q.help && <p className="muted">{q.help}</p>}
-
-      {q.input === "yesno" && (
-        <div className="row">
-          <button onClick={() => onAnswer(true)}>Да</button>
-          <button onClick={() => onAnswer(false)}>Нет</button>
+      <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div className="muted" style={{ fontSize: 12 }}>
+            {tree.title}
+          </div>
+          <h2 style={{ margin: "6px 0 0 0" }}>{node.title}</h2>
+          {node.description ? <div className="muted" style={{ marginTop: 6 }}>{node.description}</div> : null}
         </div>
-      )}
 
-      {q.input === "select" && q.options && (
-        <div className="grid">
-          {q.options.map((opt) => (
-            <button key={opt.value} onClick={() => onAnswer(opt.value)}>
-              {opt.label}
-            </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="secondary" onClick={back} disabled={history.length === 0}>
+            Назад
+          </button>
+          <button className="secondary" onClick={reset}>
+            Сброс
+          </button>
+        </div>
+      </div>
+
+      {/* Конкретные действия из библиотеки */}
+      {packs.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h3 style={{ marginTop: 0 }}>Конкретные действия</h3>
+
+          {packs.map((p) => (
+            <div key={p.id} style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 700 }}>{p.title}</div>
+              <div className="muted" style={{ marginBottom: 8 }}>{p.whenToUse}</div>
+
+              <ol style={{ marginTop: 6 }}>
+                {p.steps.map((s, idx) => (
+                  <li key={idx} style={{ marginBottom: 6 }}>
+                    {s.text}
+                    {s.check ? <div className="muted">✔ Контроль: {s.check}</div> : null}
+                  </li>
+                ))}
+              </ol>
+
+              {p.tools?.length ? (
+                <>
+                  <div style={{ fontWeight: 600 }}>Инструменты</div>
+                  <ul>{p.tools.map((t) => <li key={t}>{t}</li>)}</ul>
+                </>
+              ) : null}
+
+              {p.safety?.length ? (
+                <>
+                  <div style={{ fontWeight: 600 }}>Техника безопасности</div>
+                  <ul>{p.safety.map((t) => <li key={t}>{t}</li>)}</ul>
+                </>
+              ) : null}
+
+              {p.notes?.length ? (
+                <>
+                  <div style={{ fontWeight: 600 }}>Примечания</div>
+                  <ul>{p.notes.map((n) => <li key={n}>{n}</li>)}</ul>
+                </>
+              ) : null}
+
+              {p.source ? <div className="muted">Источник: {p.source}</div> : null}
+            </div>
           ))}
         </div>
       )}
 
-      {q.input === "number" && <NumberAnswer onSubmit={(n) => onAnswer(n)} />}
-
-      <div className="row" style={{ marginTop: 16 }}>
-        <button className="secondary" onClick={reset}>
-          Сброс
-        </button>
+      {/* Управление логикой узла */}
+      <div style={{ marginTop: 12 }}>
+        {node.type === "question" ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {node.options.map((o) => (
+              <button key={o.label} onClick={() => go(o.next)}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        ) : node.type === "action" ? (
+          <div style={{ display: "flex", gap: 10 }}>
+            {node.next ? (
+              <button onClick={() => go(node.next)}>Далее</button>
+            ) : (
+              <div className="muted">Нет следующего шага (проверьте дерево)</div>
+            )}
+          </div>
+        ) : (
+          <div className="muted">Результат. При необходимости нажмите “Назад” или “Сброс”.</div>
+        )}
       </div>
     </div>
-  );
-}
-
-function NumberAnswer({ onSubmit }: { onSubmit: (n: number) => void }) {
-  const [val, setVal] = useState<string>("");
-
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        const n = Number(val);
-        if (Number.isFinite(n)) onSubmit(n);
-      }}
-      className="row"
-    >
-      <input value={val} onChange={(e) => setVal(e.target.value)} placeholder="Введите число" />
-      <button type="submit">Далее</button>
-    </form>
   );
 }
