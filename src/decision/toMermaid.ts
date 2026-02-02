@@ -1,32 +1,33 @@
-import type { DecisionTree } from "./decisionTree";
+// src/decision/toMermaid.ts
+import type { DecisionTree, DecisionNode } from "./decisionTree";
+
+function esc(s: string) {
+  return s.replace(/"/g, '\\"');
+}
 
 export function treeToMermaid(tree: DecisionTree): string {
   const lines: string[] = [];
   lines.push("flowchart TD");
-  const safe = (s: string) => s.replace(/[\[\]\(\)<>]/g, "").replace(/\n/g, " ").trim();
+  lines.push(`  START(["${esc(tree.title)}"]) --> ${tree.startNodeId}`);
 
-  for (const node of Object.values(tree.nodes)) {
+  const ids = Object.keys(tree.nodes);
+
+  for (const id of ids) {
+    const node = tree.nodes[id] as DecisionNode;
+    const label = esc(node.title);
+
     if (node.type === "question") {
-      lines.push(`  ${node.id}{${safe(node.title)}}`);
-      for (const e of node.edges) {
-        const label =
-          e.label ??
-          ("always" in e.when
-            ? "далее"
-            : "eq" in e.when
-              ? String((e.when as any).eq)
-              : "in" in e.when
-                ? `in(${(e.when as any).in.join(",")})`
-                : "gte" in e.when
-                  ? `>=${(e.when as any).gte}`
-                  : "lte" in e.when
-                    ? `<=${(e.when as any).lte}`
-                    : "");
-        lines.push(`  ${node.id} -->|${safe(label)}| ${e.to}`);
+      lines.push(`  ${id}{{"${label}"}}`);
+      for (const opt of node.options) {
+        lines.push(`  ${id} -->|"${esc(opt.label)}"| ${opt.next}`);
       }
+    } else if (node.type === "action") {
+      lines.push(`  ${id}["${label}"]`);
+      if (node.next) lines.push(`  ${id} --> ${node.next}`);
     } else {
-      lines.push(`  ${node.id}[${safe(node.title)}]`);
+      lines.push(`  ${id}(["${label}"])`);
     }
   }
+
   return lines.join("\n");
 }
