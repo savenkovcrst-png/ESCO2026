@@ -1,4 +1,6 @@
+// src/trees/index.ts
 import type { DecisionTree } from "../decision/decisionTree";
+
 import { chapter1_tree } from "./chapter1_accidents";
 import { chapter2_tree } from "./chapter2_elimination";
 import { chapter3_tree } from "./chapter3_prevention";
