@@ -9,7 +9,6 @@ export default function App() {
   const [showMermaid, setShowMermaid] = useState<boolean>(false);
 
   const tree = useMemo(() => TREES.find((t) => t.id === treeId) ?? TREES[0], [treeId]);
-
   const mermaid = useMemo(() => (tree ? treeToMermaid(tree) : ""), [tree]);
 
   return (
@@ -43,7 +42,11 @@ export default function App() {
 
       <div style={{ height: 14 }} />
 
-      {tree ? <DecisionTreeRunner tree={tree} /> : null}
+      {tree ? (
+        // ✅ Ключевой фикс: при смене дерева Runner размонтируется и создастся заново,
+        // сбросив currentNodeId на startNodeId нового дерева.
+        <DecisionTreeRunner key={tree.id} tree={tree} />
+      ) : null}
 
       <div style={{ height: 14 }} />
 
@@ -51,7 +54,7 @@ export default function App() {
 
       <div style={{ height: 18 }} />
       <div className="muted">
-        <b>Как расширять:</b> добавляйте узлы/ветки в файлы <code>src/trees/*.ts</code> (вплоть до детальных подслучаев 2.1–2.6, 4.2–4.18, 5.4–5.12).
+        <b>Как расширять:</b> добавляйте узлы/ветки в файлы <code>src/trees/*.ts</code>.
       </div>
     </div>
   );
